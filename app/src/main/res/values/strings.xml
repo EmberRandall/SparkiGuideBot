@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">SparkiGuideBot</string>
+    <string name="action_settings">Settings</string>
+    <string name="welcome_to_sparki">Welcome to SparkiGuideBot!</string>
+    <string name="start">Start navigation</string>
+    <string name="title_activity_maze_search">MazeSearchActivity</string>
+</resources>
