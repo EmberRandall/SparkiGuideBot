@@ -1,18 +1,29 @@
 package robotics.sparkiguidebot;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.media.MediaActionSound;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.UUID;
 
 public class MazeSearchActivity extends AppCompatActivity {
     private int[][] mazeList = new int[][]{{0, 0, 0, 0, 0, 0, 0, 0, 0, 50},
@@ -34,6 +45,12 @@ public class MazeSearchActivity extends AppCompatActivity {
     private PriorityQueue<MazeNode> openList = new PriorityQueue<MazeNode>();
     private ArrayList<MazeNode> closedList = new ArrayList<MazeNode>();
     private MazeNode[][] maze = new MazeNode[mazeList.length][mazeList[0].length];
+
+
+    private BluetoothAdapter adapter;
+    private Set<BluetoothDevice> pairedDevices;
+    private static final UUID MY_UUID = UUID
+            .fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +75,39 @@ public class MazeSearchActivity extends AppCompatActivity {
         }
         TextView textView = (TextView) findViewById(R.id.path);
         textView.setText(message);
+
+        adapter = BluetoothAdapter.getDefaultAdapter();
+        if (!adapter.isEnabled()) {
+            Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(turnOn, 0);
+            Toast.makeText(getApplicationContext(), "Turned on", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public void list(View v){
+        pairedDevices = adapter.getBondedDevices();
+        ArrayList list = new ArrayList();
+        BluetoothSocket socket = null;
+
+        for(BluetoothDevice bt : pairedDevices) {
+            list.add(bt.getName());
+            if (bt.getName().contains("ArcBotics")) {
+                Toast.makeText(getApplicationContext(), "Getting UUID", Toast.LENGTH_SHORT).show();
+                try {
+                    socket = bt.createRfcommSocketToServiceRecord(MY_UUID);
+                } catch (Exception e) {}
+            }
+        }
+        if (socket != null) {
+            Toast.makeText(getApplicationContext(), "found socket", Toast.LENGTH_SHORT).show();
+            BluetoothThread thread = new BluetoothThread(socket);
+            String command = "f99";
+            thread.write(command.getBytes());
+        }
+
+        final ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, list);
+        ListView lv = (ListView)findViewById(R.id.listView);
+        lv.setAdapter(adapter);
     }
 
     private void createMaze() {
@@ -66,17 +116,6 @@ public class MazeSearchActivity extends AppCompatActivity {
                 maze[i][j] = new MazeNode(i, j, mazeList[i][j]);
             }
         }
-    }
-
-    private String printMaze() {
-        String s = "";
-        for (int i = 0; i < maze.length; i++) {
-            for (int j = 0; j < maze[i].length; j++) {
-                s += maze[i][j].getUtility() + "  ";
-            }
-            s += "\n";
-        }
-        return s;
     }
 
     private void iterate() {
