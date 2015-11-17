@@ -5,4 +5,8 @@
     <string name="start">Start navigation</string>
     <string name="title_activity_maze_search">MazeSearchActivity</string>
     <string name="continue_navigation">Continue navigation</string>
+    <string name="move_forward">Moving forward</string>
+    <string name="turn_left">Turning left then moving forward</string>
+    <string name="turn_right">Turning right then moving forward</string>
+    <string name="move_finished">Finished moving</string>
 </resources>

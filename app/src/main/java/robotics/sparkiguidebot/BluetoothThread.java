@@ -1,6 +1,8 @@
 package robotics.sparkiguidebot;
 
 import android.bluetooth.BluetoothSocket;
+import android.os.Handler;
+import android.util.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +15,9 @@ public class BluetoothThread extends Thread {
     private final BluetoothSocket mmSocket;
     private final InputStream mmInStream;
     private final OutputStream mmOutStream;
+    private final Handler mHandler;
 
-    public BluetoothThread(BluetoothSocket socket) {
+    public BluetoothThread(BluetoothSocket socket, Handler handler) {
         mmSocket = socket;
         InputStream tmpIn = null;
         OutputStream tmpOut = null;
@@ -28,6 +31,7 @@ public class BluetoothThread extends Thread {
 
         mmInStream = tmpIn;
         mmOutStream = tmpOut;
+        mHandler = handler;
     }
 
     public void run() {
@@ -40,9 +44,11 @@ public class BluetoothThread extends Thread {
                 // Read from the InputStream
                 bytes = mmInStream.read(buffer);
                 // Send the obtained bytes to the UI activity
-                //mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
-                        //.sendToTarget();
+                Log.d("Sparki", buffer.toString());
+                mHandler.obtainMessage(0, bytes, -1, buffer)
+                        .sendToTarget();
             } catch (IOException e) {
+                Log.d("Sparki", "Exception caught");
                 break;
             }
         }
