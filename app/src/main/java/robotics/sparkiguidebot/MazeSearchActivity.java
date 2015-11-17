@@ -2,7 +2,9 @@ package robotics.sparkiguidebot;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -12,19 +14,25 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.UUID;
 
 public class MazeSearchActivity extends AppCompatActivity {
-    private BluetoothAdapter mAdapter;
+    private BluetoothAdapter adapter;
+    private BluetoothSocket socket;
     private Set<BluetoothDevice> pairedDevices;
-    private Handler mHandler;
-    private ConnectThread mThread;
-    private ArrayList<MazeNode> mPath;
+    private Handler handler;
+    private ArrayList<MazeNode> path;
     private int moveNumber = 0;
     private Orientation orientation = Orientation.EAST;
+    private static final UUID MY_UUID = UUID
+            .fromString("00001101-0000-1000-8000-00805f9b34fb");
+    private ReadSparkiTask readTask;
 
     private enum Orientation {
         NORTH,
@@ -49,50 +57,58 @@ public class MazeSearchActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         MazeSearch maze = new MazeSearch();
-        mPath = maze.search();
-        /*String message = "";
-        for (MazeNode node : mPath) {
-            message += "X = " + node.getX() + ", Y = " + node.getY() + "\n";
-        }
-        TextView textView = (TextView) findViewById(R.id.path);
-        textView.setText(message);*/
+        path = maze.search();
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (!mAdapter.isEnabled()) {
+        adapter = BluetoothAdapter.getDefaultAdapter();
+        if (!adapter.isEnabled()) {
             Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(turnOn, 0);
             Toast.makeText(getApplicationContext(), "Turned on", Toast.LENGTH_SHORT).show();
         }
 
-        mHandler = new Handler () {
+        handler = new Handler () {
             @Override
             public void handleMessage(Message msg) {
                 String msgReceived = (String) msg.obj;
                 Log.d("Handler", msgReceived);
-                if (!msgReceived.contains("command")) {
-                    View view = findViewById(R.id.continue_nav_button);
-                    view.announceForAccessibility(getResources().getString(R.string.move_finished));
+                Button button = (Button) findViewById(R.id.continue_nav_button);
+                if (msgReceived == getResources().getString(R.string.found_sparki)) {
+                    button.setEnabled(true);
+                }
+                else if (msgReceived != null && msgReceived != getResources().getString(R.string.no_sparki_found)) {
+                    button.announceForAccessibility(getResources().getString(R.string.move_finished));
+                    readTask = null;
                 }
             }
         };
 
-        pairedDevices = mAdapter.getBondedDevices();
+        pairedDevices = adapter.getBondedDevices();
         ArrayList list = new ArrayList();
 
         for(BluetoothDevice bt : pairedDevices) {
             list.add(bt.getName());
             if (bt.getName().contains("ArcBotics")) {
-                Toast.makeText(getApplicationContext(), "Found Sparki", Toast.LENGTH_SHORT).show();
-                mThread = new ConnectThread(bt,  mAdapter, mHandler);
-                mThread.start();
+                // Get a BluetoothSocket to connect with the given BluetoothDevice
+                try {
+                    // MY_UUID is the app's UUID string, also used by the server code
+                    socket = bt.createRfcommSocketToServiceRecord(MY_UUID);
+                    ConnectTask task = new ConnectTask(socket, adapter, getApplicationContext(), handler);
+                    task.execute();
+                } catch (IOException e) { }
             }
         }
     }
 
     public void move(View v){
         String move = getNextMove();
-        if (mThread != null && move != "") {
-            mThread.write(move);
+        if (move != "" && socket.isConnected()) {
+            WriteToSparkiTask writeTask = new WriteToSparkiTask(socket);
+            writeTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, move);
+            if (readTask == null) {
+                readTask = new ReadSparkiTask(socket, handler);
+                readTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+
             String message = getResources().getString(R.string.move_forward);
             if (move.contains("l")) {
                 message = getResources().getString(R.string.turn_left);
@@ -106,10 +122,10 @@ public class MazeSearchActivity extends AppCompatActivity {
 
     private String getNextMove() {
         String move = "";
-        if (moveNumber < mPath.size() - 1) {
+        if (moveNumber < path.size() - 1) {
             move = "f99";
-            MazeNode current = mPath.get(moveNumber);
-            MazeNode end = mPath.get(moveNumber + 1);
+            MazeNode current = path.get(moveNumber);
+            MazeNode end = path.get(moveNumber + 1);
             if (current.getX() > end.getX() && orientation == Orientation.EAST) {
                 move = "l \n" + move;
                 orientation = Orientation.NORTH;
