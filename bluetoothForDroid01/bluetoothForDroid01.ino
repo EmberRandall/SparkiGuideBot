@@ -3,14 +3,37 @@
 String inputString; //make an empty String called inputString
 boolean returnFlag; //flag to check for carriage return
 boolean oKSent; //flag to check for OK communication
-char commArray [10]; //array to store communication
+char commArray [3]; //array to store communication
 int arrayCounter = 0; //integer to count through commArray
 int boredCounter = 0;
 int counter = 0;
 
+float xi = 0;
+float yi = 0;
+int xint;
+int yint;
+float theta = 0;
+float r = 2.55; // cm
+float d = 8.45; // cm
+float motorSpeed = 2.7724; // cm/s
+float wheelSpeed = motorSpeed / r; // 1/s
+float wheelRight = 0;
+float wheelLeft = 0;
+unsigned long time;
+float deltaTime;
+int threshold = 500;
+
+// Mapping
+const int x_dim = 16;
+const int y_dim = 8;
+char my_map[x_dim][y_dim];
+
+
+
 void setup()
 {
   Serial1.begin(9600);
+  sparki.clearLCD();
 }
 
 void loop()
@@ -25,16 +48,21 @@ void makeMove(){
       char * pEnd;
       long int distance = strtol(commArray,&pEnd,10);
       sparki.moveForward(distance);
-      delay(1000); 
-      sparki.moveStop();
+      Serial1.print("F");
+      wheelLeft = wheelSpeed;
+      wheelRight = wheelSpeed;
     }
     else if (commArray[0] == 'r' || commArray[0] == 'R')
     {
       sparki.moveRight(90);
+      wheelLeft = wheelSpeed;
+      wheelRight = -wheelSpeed;
     }
     else if (commArray[0] == 'l' || commArray[0] == 'L')
     {
       sparki.moveLeft(90);
+      wheelLeft = -wheelSpeed;
+      wheelRight = wheelSpeed;
     }
     else if (commArray[0] != 0) //in case it's a character sparki doesn't understand
     {
@@ -50,9 +78,6 @@ void readComm()
   while (Serial1.available())
   {
     int inByte = Serial1.read();
-    for( int i = 0; i < sizeof(commArray); i++) {
-      //Serial1.print(commArray[i]);
-    }
     
     if (counter == 2) {
          makeMove(); 
@@ -69,5 +94,16 @@ void readComm()
       commArray[counter] = (char)inByte;
       counter++;
     }
+    delay(60); // wait 0.1 seconds
+  
+    deltaTime = float((millis() - time)) / 1000.0;
+    xi = xi + cos(theta) * (r * wheelRight / 2 + r * wheelLeft / 2) * deltaTime;
+    yi = yi + sin(theta) * (r * wheelRight / 2 + r * wheelLeft / 2) * deltaTime;
+    theta = theta + (wheelRight * r / d - wheelLeft * r / d) * deltaTime;
+    time = millis();
+    
+    sparki.clearLCD();
+    sparki.print("\nxi: "); sparki.println(xint);
+    sparki.print("\nyi: "); sparki.println(yint);
   }
 }
