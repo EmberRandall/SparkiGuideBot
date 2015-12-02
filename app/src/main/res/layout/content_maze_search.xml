@@ -32,6 +32,7 @@
     <ImageView
         android:layout_width="wrap_content"
         android:layout_below="@id/continue_nav_button"
+        android:id="@+id/maze"
         android:src="@drawable/blank_maze"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true" />

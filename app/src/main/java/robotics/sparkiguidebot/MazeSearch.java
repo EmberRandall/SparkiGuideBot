@@ -124,4 +124,21 @@ public class MazeSearch {
         }
         return null;
     }
+
+    public String getAdjacentWalls(int x, int y) {
+        String walls = "";
+        if (x - 1 >= 0 && mazeList[x - 1][y] == 2) {
+            walls += "bn00";
+        }
+        if (x + 1 < mazeList.length && mazeList[x + 1][y] == 2) {
+            walls += "bs00";
+        }
+        if (y - 1 >= 0 && mazeList[x][y - 1] == 2) {
+            walls += "bw00";
+        }
+        if (y + 1 < mazeList[x].length && mazeList[x][y + 1] == 2) {
+            walls += "be00";
+        }
+        return walls;
+    }
 }

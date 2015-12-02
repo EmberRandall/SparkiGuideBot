@@ -40,7 +40,7 @@ public class ConnectTask extends AsyncTask<Void, Void, Boolean> {
             Log.d("Thread", "Connected");
             return true;
         } catch (IOException connectException) {
-            Log.d("Thread", "Caught exception");
+            Log.d("Thread", connectException.getMessage());
             // Unable to connect; close the socket and get out
             try {
                 socket.close();
