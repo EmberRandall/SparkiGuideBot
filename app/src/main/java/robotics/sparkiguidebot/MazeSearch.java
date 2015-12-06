@@ -1,5 +1,7 @@
 package robotics.sparkiguidebot;
 
+import android.graphics.drawable.GradientDrawable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.PriorityQueue;
@@ -8,7 +10,8 @@ import java.util.PriorityQueue;
  * Created by Emily on 11/16/2015.
  */
 public class MazeSearch {
-    private int[][] mazeList = new int[][]{{0, 0, 0, 0, 0, 0, 0, 0, 0, 50},
+    private int[][] mazeList = new int[][]{
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 50},
             {1, 0, 2, 2, 2, 0, 3, 0, 0, 0},
             {0, 0, 0, 0, 0, 0, 0, 0, 2, 0},
             {2, 2, 1, 0, 0, 2, 0, 0, 2, 0},
@@ -46,7 +49,7 @@ public class MazeSearch {
             double max_err = 0.0;
             for (int i = 0; i < maze.length; i++) {
                 for (int j = maze[i].length - 1; j >= 0; j--) {
-                    if (maze[i][j].getTyp() != 2) {
+                    if (maze[i][j].getTyp() != MazeNode.Type.WALL) {
                         double oldUtil = maze[i][j].getUtility();
                         maze[i][j].setUtility(maze[i][j].getReward() + gamma * getMaxMove(i, j));
                         if (Math.abs(oldUtil - maze[i][j].getUtility()) > max_err) {
@@ -125,19 +128,29 @@ public class MazeSearch {
         return null;
     }
 
-    public String getAdjacentWalls(int x, int y) {
+    public String getAdjacentWalls(int x, int y, MazeSearchActivity.Orientation orientation) {
         String walls = "";
-        if (x - 1 >= 0 && mazeList[x - 1][y] == 2) {
-            walls += "bn00";
-        }
-        if (x + 1 < mazeList.length && mazeList[x + 1][y] == 2) {
-            walls += "bs00";
-        }
-        if (y - 1 >= 0 && mazeList[x][y - 1] == 2) {
-            walls += "bw00";
-        }
-        if (y + 1 < mazeList[x].length && mazeList[x][y + 1] == 2) {
-            walls += "be00";
+        switch (orientation) {
+            case NORTH:
+                if (x - 1 >= 0 && maze[x - 1][y].getTyp() == MazeNode.Type.WALL) {
+                    walls += "bn00 \n";
+                }
+                if (y - 1 >= 0 && maze[x][y - 1].getTyp() == MazeNode.Type.WALL) {
+                    walls += "bw00 \n";
+                }
+                if (y + 1 < mazeList[x].length && maze[x][y + 1].getTyp() == MazeNode.Type.WALL) {
+                    walls += "be00 \n";
+                }
+            case EAST:
+                if (x - 1 >= 0 && maze[x - 1][y].getTyp() == MazeNode.Type.WALL) {
+                    walls += "bw00 \n";
+                }
+                if (x + 1 >= 0 && maze[x + 1][y].getTyp() == MazeNode.Type.WALL) {
+                    walls += "be00 \n";
+                }
+                if (y + 1 < mazeList[x].length && maze[x][y + 1].getTyp() == MazeNode.Type.WALL) {
+                    walls += "bn00 \n";
+                }
         }
         return walls;
     }

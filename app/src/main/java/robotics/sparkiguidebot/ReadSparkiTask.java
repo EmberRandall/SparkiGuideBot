@@ -40,8 +40,8 @@ public class ReadSparkiTask extends AsyncTask<Void, Void, String> {
                 // Read from the InputStream
                 bytes = inputStream.read(buffer);
                 // Send the obtained bytes to the UI activity
-                Log.d("SparkiRead", buffer.toString());
-                return buffer.toString();
+                Log.d("SparkiRead", Character.toString((char)buffer[0]));
+                return Character.toString((char) buffer[0]);
             } catch (IOException e) {
                 Log.d("SparkiRead", "Exception caught");
                 break;

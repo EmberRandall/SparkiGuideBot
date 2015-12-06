@@ -37,7 +37,7 @@ public class MazeSearchActivity extends AppCompatActivity {
             .fromString("00001101-0000-1000-8000-00805f9b34fb");
     private ReadSparkiTask readTask;
 
-    private enum Orientation {
+    protected enum Orientation {
         NORTH,
         EAST
     }
@@ -73,12 +73,12 @@ public class MazeSearchActivity extends AppCompatActivity {
             @Override
             public void handleMessage(Message msg) {
                 String msgReceived = (String) msg.obj;
-                Log.d("Handler", msgReceived);
                 Button button = (Button) findViewById(R.id.continue_nav_button);
                 if (msgReceived == getResources().getString(R.string.found_sparki)) {
                     button.setEnabled(true);
                 }
-                else if (msgReceived != null && msgReceived != getResources().getString(R.string.no_sparki_found)) {
+                else if (msgReceived != null && msgReceived.contains("F")) {
+                    Log.d("Handler", msgReceived);
                     button.announceForAccessibility(getResources().getString(R.string.move_finished));
                     button.setEnabled(true);
                     readTask = null;
@@ -130,21 +130,23 @@ public class MazeSearchActivity extends AppCompatActivity {
 
     private String getNextMove() {
         String move = "";
+        String forward = "f230";
         // n for wall in front, w for west, e for east
         // b starts wall commands
         // number for spaces between it and wall (0 for adjacent square)
         if (moveNumber < path.size() - 1) {
             MazeNode current = path.get(moveNumber);
             MazeNode end = path.get(moveNumber + 1);
-            move = maze.getAdjacentWalls(end.getX(), end.getY()) + "f099";
             if (current.getX() > end.getX() && orientation == Orientation.EAST) {
-                move = "l000 \n" + move;
+                move += "l000 \n";
                 orientation = Orientation.NORTH;
             }
             else if (current.getY() < end.getY() && orientation == Orientation.NORTH) {
-                move = "r000 \n" + move;
+                move += "r000 \n";
                 orientation = Orientation.EAST;
             }
+            String walls = maze.getAdjacentWalls(end.getX(), end.getY(), orientation);
+            move += forward + walls;
         }
         moveNumber++;
         return move;

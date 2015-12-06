@@ -1,26 +1,56 @@
 package robotics.sparkiguidebot;
 
+import android.util.Log;
+
 /**
  * Created by Emily on 11/11/2015.
  */
 public class MazeNode implements Comparable<MazeNode> {
-    private int x, y, typ;
+    private int x, y;
+    private Type typ;
     private double utility, reward;
     private MazeNode parent = null;
+
+    protected enum Type {
+        BLANK (0),
+        STOP (1),
+        WALL (2),
+        GREEN (3),
+        END (50);
+
+        private final int value;
+        Type(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static Type getType(int value) {
+            switch (value) {
+                case 50:
+                    return END;
+                default:
+                    return Type.values()[value];
+            }
+        }
+    }
 
     public MazeNode(int x, int y, int typ) {
         this.x = x;
         this.y = y;
-        this.typ = typ;
+        this.typ = Type.getType(typ);
+        Log.d("MazeNode", this.typ.toString());
         this.utility = typ != 2 ? 0 : Double.NEGATIVE_INFINITY;
-        switch(typ) {
-            case 1: this.reward = -3;
+        switch(this.typ) {
+            case STOP: this.reward = -3;
                 break;
-            case 2: this.reward = Double.NEGATIVE_INFINITY;
+            case WALL: this.reward = Double.NEGATIVE_INFINITY;
                 break;
-            case 3: this.reward = 2;
+            case GREEN: this.reward = 2;
                 break;
-            case 50: this.reward = 50;
+            case END: this.reward = 50;
                 break;
             default: this.reward = 0;
                 break;
@@ -33,7 +63,7 @@ public class MazeNode implements Comparable<MazeNode> {
     public int getY() {
         return this.y;
     }
-    public int getTyp() {
+    public Type getTyp() {
         return this.typ;
     }
     public double getUtility() {
