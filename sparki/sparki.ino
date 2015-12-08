@@ -22,7 +22,7 @@
 #define BLOCK_FAR 2
 
 // Block Distances
-#define BLOCK_CLOSE_DISTANCE 10
+#define BLOCK_CLOSE_DISTANCE 11
 #define BLOCK_FAR_DISTANCE 20
 
 // Number of UltraSound Readings Per Correction
@@ -31,12 +31,33 @@
 // Acceptable UltraSound Error
 #define ACCEPTABLE_ULTRA_ERROR 2
 
+// Weighted Ave vars
+double x_error = 0;
+double y_error = 0;
+
+#define W_STD 0.00129945118
+#define W_AVG -0.009197235513
+#define D_STD 0.004678362573
+#define D_AVG 0.0001845800691
+
+float od_last_x = 0;
+float od_last_y = 0;
+float od_diff_x = 0;
+float od_diff_y = 0;
+
+int last_command = 0;
+
+double estimated_x = 0;
+double estimated_y = 0;
+
+double total_x = 0;
+double total_y = 0;
+
 // Variables For Reading From Bluetooth
 char bt_input_array [4]; //array to store communication
 int bt_array_counter = 0;
 
 // Variables for Odometry
-/**
 float xi = 0;
 float yi = 0;
 int xint;
@@ -50,7 +71,7 @@ float wheelRight = 0;
 float wheelLeft = 0;
 unsigned long time;
 float deltaTime;
-**/
+
 
 // Global UltraSound Reading
 int cm = 0;
@@ -77,12 +98,17 @@ void setup()
 void loop()
 {
     sparki.clearLCD();
+    
     readBlueTooth();
-    //delay(60); // wait 0.1 seconds
-    //odometryCalc();
-    sparki.print("x: "); sparki.println(current_x);
-    sparki.print("y: "); sparki.println(current_y);
-    sparki.print("heading: "); sparki.println(current_heading);
+    odometryCalc();
+    fixError();
+    
+    sparki.print(" commanded x: "); sparki.println(current_x);
+    sparki.print(" commanded y: "); sparki.println(current_y);
+    
+   sparki.print(" estimated x: ");sparki.println(total_x);
+   sparki.print(" estimated y: ");sparki.println(total_y);
+    
     sparki.updateLCD();
 }
 
@@ -93,25 +119,48 @@ void makeMove(){
       bt_input_array[0] = '0';
       char * pEnd;
       long int distance = strtol(bt_input_array,&pEnd,10);
-      sparki.moveForward(distance);
+      
       updatePosition(distance);
+      
+      if(current_heading == E || current_heading == W) {
+        sparki.moveForward(distance-x_error);
+        Serial.print("total x 1: ");Serial.println(total_x);
+        total_x -= x_error;
+        Serial.print("total x 2: ");Serial.println(total_x);
+        x_error = 0;
+      } else {
+        sparki.moveForward(distance-y_error);
+        Serial.print("total y 1: ");Serial.println(total_y);
+        total_y -= y_error;
+        Serial.print("total y 2: ");Serial.println(total_y);
+        y_error = 0;
+      }
+      
+      last_command = distance;
+      
+      
+      
       Serial1.print("F");
-      //wheelLeft = wheelSpeed;
-      //wheelRight = wheelSpeed;
+      wheelLeft = wheelSpeed;
+      wheelRight = wheelSpeed;
     }
     else if (bt_input_array[0] == 'r' || bt_input_array[0] == 'R')
     {
       sparki.moveRight(90);
+      
       updateHeading(1);
-      //wheelLeft = wheelSpeed;
-      //wheelRight = -wheelSpeed;
+      
+      wheelLeft = -wheelSpeed;
+      wheelRight = wheelSpeed;
     }
     else if (bt_input_array[0] == 'l' || bt_input_array[0] == 'L')
     {
       sparki.moveLeft(90);
+      
       updateHeading(-1);
-      //wheelLeft = -wheelSpeed;
-      //wheelRight = wheelSpeed;
+      
+      wheelLeft = wheelSpeed;
+      wheelRight = -wheelSpeed;
       
     }
     else if (bt_input_array[0] == 'b' || bt_input_array[0] == 'b') // block
@@ -187,30 +236,28 @@ void updatePosition(int distance)
   else if(current_heading == E) current_x -= distance;
 }
 
-/**
+
 void odometryCalc()
 {
   deltaTime = float((millis() - time)) / 1000.0;
-  
-  sparki.print(" deltaTime: "); sparki.println(deltaTime);
-  sparki.print(" wheelRight: "); sparki.println(wheelLeft);
-  sparki.print(" wheelLeft: "); sparki.println(wheelRight);
   
   xi = xi + cos(theta) * (r * wheelRight / 2 + r * wheelLeft / 2) * deltaTime;
   yi = yi + sin(theta) * (r * wheelRight / 2 + r * wheelLeft / 2) * deltaTime;
   theta = theta + (wheelRight * r / d - wheelLeft * r / d) * deltaTime;
   time = millis();
+  
+  wheelRight = 0;
+  wheelLeft = 0;
     
-  sparki.print(" xi: "); sparki.println(xint);
-  sparki.print(" yi: "); sparki.println(yint);
-  sparki.print(" theta: "); sparki.println(theta);
+  sparki.print(" odometry x: "); sparki.println(yi);
+  sparki.print(" odometry y: "); sparki.println(xi);
 }
-**/
+
 
 int readUltra()
 {
   cm = sparki.ping(); // measures the distance with Sparki's eyes 
-  sparki.print(" ultra "); sparki.println(cm);
+  //sparki.print(" ultra "); sparki.println(cm);
   return cm;
 }
 
@@ -330,4 +377,70 @@ void ultraCorrection(int long block_location)
   }
 }
 
+void fixError()
+{
+   if (last_command < 1) return;
+   
+   Serial.print("last_comand: ");Serial.println(last_command);
+   
+   double w_std = W_STD * last_command;
+   double d_std = D_STD * last_command;
+   double w_avg = W_AVG * last_command;
+   double d_avg = D_AVG * last_command;
+   
+   estimated_x = 0;
+   estimated_y = 0;
+   
+   Serial.print("w_std: ");Serial.println(w_std);
+   Serial.print("d_std: ");Serial.println(d_std);
+   Serial.print("w_avg: ");Serial.println(w_avg);
+   Serial.print("d_avg: ");Serial.println(d_avg);
+   
+   od_diff_x = yi - od_last_x;
+   od_diff_y = xi - od_last_y;
+   
+   Serial.print("od_diff_x: ");Serial.println(od_diff_x);
+   Serial.print("od_diff_y: ");Serial.println(od_diff_y);
+   Serial.print("od_last_x: ");Serial.println(od_last_x);
+   Serial.print("od_last_y: ");Serial.println(od_last_y);
+   
+   if (current_heading == N || current_heading == S) {
+     estimated_y = weightedAve(last_command,od_diff_y,d_avg,d_std,w_avg,w_std);
+    Serial.print("previous error y: ");Serial.println(y_error);
+     y_error += (last_command - estimated_y);
+     estimated_y += (y_error*2);
+   } else {
 
+     estimated_x = weightedAve(last_command,od_diff_x,d_avg,d_std,w_avg,w_std);
+     Serial.print("previous error x: ");Serial.println(x_error);
+     x_error += (last_command - estimated_x);
+     estimated_x += (x_error*2);
+   }
+   
+   Serial.print("estimated x: ");Serial.println(estimated_x);
+   Serial.print("estimated y: ");Serial.println(estimated_y);
+   Serial.print("error x: ");Serial.println(x_error);
+   Serial.print("error y: ");Serial.println(y_error);
+   
+   total_x += estimated_x;
+   total_y += estimated_y;
+   
+   // set the last od
+   od_last_x = yi;
+   od_last_y = xi;
+   
+   last_command = 0;
+}
+
+double weightedAve(float command, float measured, float d_avg, float d_std, float w_avg, float w_std) {
+  // Square the std devs
+  long double d_std_sq = d_std * d_std; 
+  long double w_std_sq = w_std * w_std;
+ 
+   // Calc the weighted average 
+   long double ret = (command + d_avg) / (d_std_sq);
+   ret += (measured + w_avg) / (w_std_sq);
+   ret = ret / ((1/d_std_sq)+(1/w_std_sq));
+   
+   return ret;
+}
